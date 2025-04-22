@@ -1,0 +1,19 @@
+# --- Build artifacts ---
+/build*/
+/*_artefacts/
+/bin/
+/out/
+
+# --- Dependencies ---
+/_deps/
+
+# --- IDE ---
+/.vscode/
+!.vscode/settings.json  # Keep essential VSCode settings
+/.idea/
+
+# --- System ---
+.DS_Store
+Thumbs.db
+*.swp
+*~
