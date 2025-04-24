@@ -3,18 +3,6 @@ cmake_minimum_required(VERSION 3.24)
 # Change to your project name
 project(ParamEq VERSION 0.0.1)
 
-# Força o gerador Ninja (ou Makefiles) e desativa o Visual Studio
-if(WIN32)
-    find_program(NINJA_PATH ninja PATHS ENV PATH)
-    if(NINJA_PATH)
-        set(CMAKE_GENERATOR "Ninja" CACHE INTERNAL "")
-        unset(CMAKE_GENERATOR_INSTANCE CACHE)
-    else()
-        message(WARNING "Ninja não encontrado! Usando MinGW Makefiles...")
-        set(CMAKE_GENERATOR "MinGW Makefiles" CACHE INTERNAL "")
-    endif()
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_XCODE_GENERATE_SCHEME OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -40,6 +28,8 @@ CPMAddPackage(
     GIT_TAG origin/master
 )
 
+
+
 # Source files
 set(SourceFiles
         Source/PluginEditor.cpp
@@ -47,6 +37,12 @@ set(SourceFiles
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
 )
+
+if(NOT DEFINED PLUGIN_OUTPUT_BASE)
+    set(PLUGIN_OUTPUT_BASE "${CMAKE_BINARY_DIR}/BuildOutput")
+endif()
+
+set(PLUGIN_OUTPUT_DIR "${PLUGIN_OUTPUT_BASE}/$<CONFIG>")
 
 # Change these to your own preferences
 juce_add_plugin(${PROJECT_NAME}
@@ -61,7 +57,7 @@ juce_add_plugin(${PROJECT_NAME}
         PLUGIN_MANUFACTURER_CODE Tap1
         PLUGIN_CODE Reg0
         FORMATS VST3 Standalone
-        PRODUCT_NAME "ParamEq"        
+        PRODUCT_NAME "ParamEq"
 )
 
 # How we want our SourceFiles to appear in our IDE
@@ -80,10 +76,13 @@ target_compile_definitions(${PROJECT_NAME}
 
 # JUCE libraries to bring into our project
 target_link_libraries(${PROJECT_NAME}
-        PUBLIC
+        PRIVATE
         juce::juce_analytics
         juce::juce_audio_basics
         juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_plugin_client
+        juce::juce_audio_processors
         juce::juce_core
         juce::juce_data_structures
         juce::juce_graphics
