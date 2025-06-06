@@ -11,6 +11,7 @@
 /.vscode/
 !.vscode/settings.json  # Keep essential VSCode settings
 /.idea/
+/.tools/
 
 # --- System ---
 .DS_Store

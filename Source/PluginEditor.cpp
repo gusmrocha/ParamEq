@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -13,72 +5,89 @@
 ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    //=== Configura��o dos Sliders ============================================
-    // Slider rotativo para frequ�ncia
-    freqSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);  // Estilo "knob"
-    freqSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);  // Caixa de texto embaixo
+    const int numBands = ParamEqAudioProcessor::NUM_BANDS;
 
-    // Slider linear vertical para ganho
-    gainSlider.setSliderStyle(juce::Slider::LinearVertical);
-    gainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+    for (int band = 0; band < numBands; band++) {
+        // === Configuração dos Sliders ===
+        // Frequência
+        freqSliders[band].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        freqSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+        freqSliders[band].setNumDecimalPlacesToDisplay(0);
+        freqSliders[band].setTextValueSuffix(" Hz");
 
-    // Slider rotativo para Q
-    qSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    qSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+        // Q
+        qSliders[band].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        qSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+        qSliders[band].setNumDecimalPlacesToDisplay(2);
 
-    // Adiciona todos os sliders � interface
-    for (auto* slider : { &freqSlider, &gainSlider, &qSlider }) {
-        addAndMakeVisible(slider);  // Torna vis�vel e adiciona ao layout
+        // Gain
+        gainSliders[band].setSliderStyle(juce::Slider::LinearVertical);
+        gainSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+        gainSliders[band].setTextValueSuffix(" dB");
+
+        // === Visibilidade ===
+        addAndMakeVisible(freqSliders[band]);
+        addAndMakeVisible(qSliders[band]);
+        addAndMakeVisible(gainSliders[band]);
+
+        // === Attachments ===
+        freqAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            audioProcessor.parameters, "FREQ" + juce::String(band + 1), freqSliders[band]
+        ));
+        gainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            audioProcessor.parameters, "GAIN" + juce::String(band + 1), gainSliders[band]
+        ));
+        qAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            audioProcessor.parameters, "Q" + juce::String(band + 1), qSliders[band]
+        ));
     }
-
-    //=== Conex�o aos Par�metros ==============================================
-    // Cria attachments que vinculam sliders aos par�metros
-    freqAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.parameters,  // Refer�ncia ao ValueTreeState
-        "FREQ",  // ID do par�metro
-        freqSlider  // Slider correspondente
-    );
-
-    gainAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.parameters,
-        "GAIN",
-        gainSlider
-    );
-
-    qAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.parameters,
-        "Q",
-        qSlider
-    );
-
-    // Tamanho inicial da janela
-    setSize (400, 300);
+    // === Tamanho da janela ===
+    setSize(1000, 400);
 }
 
-ParamEqAudioProcessorEditor::~ParamEqAudioProcessorEditor()
-{
-}
+ParamEqAudioProcessorEditor::~ParamEqAudioProcessorEditor() {}
 
 //==============================================================================
 void ParamEqAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-
 }
 
 void ParamEqAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(10);  // �rea �til com margem
-    const int itemWidth = 80;  // Largura de cada controle
+    auto area = getLocalBounds().reduced(10);
 
-    // Posiciona frequ�ncia � esquerda
-    freqSlider.setBounds(area.removeFromLeft(itemWidth));
+    const int numBands = ParamEqAudioProcessor::NUM_BANDS;
+    const int bandMargin = 5;
 
-    // Posiciona ganho (com redu��o vertical)
-    gainSlider.setBounds(area.removeFromLeft(itemWidth).reduced(0, 10));
+    const int minBandWidth = 100;
+    const int bandWidth = juce::jmax(minBandWidth, (area.getWidth() - (numBands - 1) * bandMargin) / numBands);
 
-    // Posiciona Q
-    qSlider.setBounds(area.removeFromLeft(itemWidth));
+    for (int band = 0; band < numBands; band++) {
+        auto bandArea = area.removeFromLeft(bandWidth);
+        if (band < numBands - 1)
+            area.removeFromLeft(bandMargin);
+
+        // === Área dos knobs (superior) ===
+        auto knobsArea = bandArea.removeFromTop(160);
+
+        const int knobSize = 70;
+        const int knobSpacing = 10;
+        const int knobsTotalWidth = knobSize * 2 + knobSpacing;
+
+        const int knobsStartX = knobsArea.getX() + (knobsArea.getWidth() - knobsTotalWidth) / 2;
+        const int knobsY = knobsArea.getY() + (knobsArea.getHeight() - knobSize) / 2;
+
+        freqSliders[band].setBounds(knobsStartX, knobsY, knobSize, knobSize);
+        qSliders[band].setBounds(knobsStartX + knobSize + knobSpacing, knobsY, knobSize, knobSize);
+
+        // === Área do slider de Gain (inferior) ===
+        const int gainWidth = 40;
+        const int gainHeight = 180;
+
+        const int gainX = bandArea.getX() + (bandArea.getWidth() - gainWidth) / 2;
+        const int gainY = bandArea.getY() + (bandArea.getHeight() - gainHeight) / 2;
+
+        gainSliders[band].setBounds(gainX, gainY, gainWidth, gainHeight);
+    }
 }

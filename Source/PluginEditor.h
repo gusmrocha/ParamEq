@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include "PluginProcessor.h"
@@ -29,11 +21,17 @@ private:
     ParamEqAudioProcessor& audioProcessor;
 
     // Componentes GUI
-    juce::Slider freqSlider, gainSlider, qSlider;  // Controles deslizantes
+    std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> freqSliders;
+    std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> gainSliders;
+    std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> qSliders;
+
 
     // Conex�es entre GUI e par�metros (SliderAttachment)
     // - Mant�m sincronia autom�tica
     // - Gerencia listeners
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> freqAttach, gainAttach, qAttach;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> freqAttachments;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> gainAttachments;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> qAttachments;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParamEqAudioProcessorEditor)
 };

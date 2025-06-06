@@ -60,12 +60,16 @@ public:
     juce::AudioProcessorValueTreeState parameters;
 
     bool supportsDoublePrecisionProcessing() const override { return false; }
+    static constexpr int NUM_BANDS = 8; 
+
+
 private:
     //====================================Defini��o do filtro==========================================
-    juce::dsp::ProcessorDuplicator<  // duplica��o para os dois canais
-        juce::dsp::IIR::Filter<float>,
-        juce::dsp::IIR::Coefficients<float>
-    > filter;
+std::vector<juce::dsp::ProcessorDuplicator<
+    juce::dsp::IIR::Filter<float>,
+    juce::dsp::IIR::Coefficients<float>
+>> filters; // Vetor para múltiplos filtros
+
 
     juce::dsp::ProcessSpec spec;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParamEqAudioProcessor)
