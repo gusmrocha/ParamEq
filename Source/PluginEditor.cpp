@@ -41,11 +41,17 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
             audioProcessor.parameters, "Q" + juce::String(band + 1), qSliders[band]
         ));
     }
-    // === Tamanho da janela ===
-    setSize(1000, 400);
+
+    spectrumAnalyzer = std::make_unique<SpectrumAnalyzer>(audioProcessor);
+    addAndMakeVisible(spectrumAnalyzer.get());
+    audioProcessor.spectrumAnalyzer = spectrumAnalyzer.get();
+
+    setSize(1000, 600); // Aumente a altura para o espectro
 }
 
-ParamEqAudioProcessorEditor::~ParamEqAudioProcessorEditor() {}
+ParamEqAudioProcessorEditor::~ParamEqAudioProcessorEditor() {
+    audioProcessor.spectrumAnalyzer = nullptr; // Limpa o ponteiro do analisador de espectro
+}
 
 //==============================================================================
 void ParamEqAudioProcessorEditor::paint (juce::Graphics& g)
@@ -56,6 +62,7 @@ void ParamEqAudioProcessorEditor::paint (juce::Graphics& g)
 void ParamEqAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
+    spectrumAnalyzer->setBounds(area.removeFromTop(200)); // 200px de altura
 
     const int numBands = ParamEqAudioProcessor::NUM_BANDS;
     const int bandMargin = 5;

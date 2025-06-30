@@ -8,6 +8,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "SpectrumAnalyzer.h"
 
 //=================================== Construtor/Destrutor ===========================================
 ParamEqAudioProcessor::ParamEqAudioProcessor() // Construtor da classe
@@ -173,6 +174,8 @@ ParamEqAudioProcessor::ParamEqAudioProcessor() // Construtor da classe
 
 ParamEqAudioProcessor::~ParamEqAudioProcessor() //Destrutor da classe
 {
+    const juce::ScopedLock sl(analyzerLock);
+    spectrumAnalyzer = nullptr;
 }
 
 //================================= Inicializações midi, nome e presets ====================================
@@ -256,8 +259,8 @@ void ParamEqAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 
 void ParamEqAudioProcessor::releaseResources()
 {
-	// Aqui você pode liberar recursos, se necessário.
-	// O JUCE geralmente cuida disso automaticamente.
+    juce::ScopedLock sl(analyzerLock);
+    spectrumAnalyzer = nullptr; // **Seguro se a GUI for fechada**
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -286,37 +289,53 @@ bool ParamEqAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
 }
 #endif
 
-void ParamEqAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+// Envia o buffer para o analisador de espectro
+void ParamEqAudioProcessor::pushBufferToAnalyzer(const juce::AudioBuffer<float>& buffer)
 {
+    const juce::ScopedLock sl(analyzerLock);
+    if (spectrumAnalyzer != nullptr && buffer.getNumSamples() > 0)
+        spectrumAnalyzer->pushBuffer(buffer);
+}
+
+void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
+    
+    // 1. Limpeza de canais não utilizados
+    for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Limpeza do buffer por causa de erros etc
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
-
-        for(int band = 0; band < NUM_BANDS; band++) {
-            for(int channel = 0; channel < totalNumInputChannels; ++channel) {
-            // Obter parâmetros para cada banda
-                auto freqParam = parameters.getRawParameterValue("FREQ" + juce::String(band+1));
-                auto qParam = parameters.getRawParameterValue("Q" + juce::String(band+1));
-                auto gainParam = parameters.getRawParameterValue("GAIN" + juce::String(band+1));
-                
-                float freq = freqParam->load();
-                float q = qParam->load();
-                float gain = juce::Decibels::decibelsToGain(gainParam->load());
-            // Configurar filtro
-                *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-                spec.sampleRate, freq, q, gain
-            );
-            }
+    // 2. Processamento dos filtros (todas as bandas)
+    for(int band = 0; band < NUM_BANDS; band++) {
+        // Atualiza coeficientes dos filtros
+        auto freq = parameters.getRawParameterValue("FREQ" + juce::String(band+1))->load();
+        auto q = parameters.getRawParameterValue("Q" + juce::String(band+1))->load();
+        auto gain = juce::Decibels::decibelsToGain(
+            parameters.getRawParameterValue("GAIN" + juce::String(band+1))->load()
+        );
         
+        *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+            spec.sampleRate, freq, q, gain
+        );
+        
+        // Aplica o filtro
         auto block = juce::dsp::AudioBlock<float>(buffer);
-        auto context = juce::dsp::ProcessContextReplacing<float>(block);
-        filters[band].process(context); // Processar cada filtro
+        filters[band].process(juce::dsp::ProcessContextReplacing<float>(block));
     }
 
+    // 3. Conversão para mono APÓS todo o processamento (fora do loop de bandas)
+    juce::AudioBuffer<float> monoBuffer(1, buffer.getNumSamples());
+    const float gainFactor = 1.0f / std::sqrt(buffer.getNumChannels());
+    
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+        float sum = 0.0f;
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+            sum += buffer.getSample(ch, i);
+        }
+        monoBuffer.setSample(0, i, gainFactor * sum);
+    }
+    
+    // 4. Envia ao analisador (uma única vez por bloco)
+    pushBufferToAnalyzer(monoBuffer);
 }
 
 //==============================================================================

@@ -25,10 +25,10 @@ private:
     std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> gainSliders;
     std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> qSliders;
 
+    // Analisador de espectro
+    std::unique_ptr<SpectrumAnalyzer> spectrumAnalyzer;
 
-    // Conex�es entre GUI e par�metros (SliderAttachment)
-    // - Mant�m sincronia autom�tica
-    // - Gerencia listeners
+    // Attachments para os sliders
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> freqAttachments;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> gainAttachments;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> qAttachments;

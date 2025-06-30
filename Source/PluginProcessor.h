@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <juce_core/juce_core.h>
+#include "SpectrumAnalyzer.h"
 
 
 //==============================================================================
@@ -16,6 +17,11 @@
     Posteriormente, ser� adicionado uma janela para visualiza��o do
     espectro, e a curva de equaliza��o dos filtros.
 */
+
+// Declaração antecipada para quebrar dependência circular
+class SpectrumAnalyzer;
+
+
 class ParamEqAudioProcessor  : public juce::AudioProcessor
 {
 public:
@@ -60,17 +66,20 @@ public:
     juce::AudioProcessorValueTreeState parameters;
 
     bool supportsDoublePrecisionProcessing() const override { return false; }
-    static constexpr int NUM_BANDS = 8; 
+    static constexpr int NUM_BANDS = 8;
 
+    // Espectro
+    void pushBufferToAnalyzer(const juce::AudioBuffer<float>& buffer);
+    SpectrumAnalyzer* spectrumAnalyzer = nullptr;
 
 private:
     //====================================Defini��o do filtro==========================================
-std::vector<juce::dsp::ProcessorDuplicator<
+    std::vector<juce::dsp::ProcessorDuplicator<
     juce::dsp::IIR::Filter<float>,
     juce::dsp::IIR::Coefficients<float>
->> filters; // Vetor para múltiplos filtros
-
-
+>> filters; // Vetor para múltiplos filtro
     juce::dsp::ProcessSpec spec;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParamEqAudioProcessor)
+
+    juce::CriticalSection analyzerLock;
 };

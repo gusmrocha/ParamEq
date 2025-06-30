@@ -36,6 +36,8 @@ set(SourceFiles
         Source/PluginEditor.h
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
+        Source/SpectrumAnalyzer.cpp
+        Source/SpectrumAnalyzer.h
 )
 
 if(NOT DEFINED PLUGIN_OUTPUT_BASE)
