@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "SpectrumAnalyzer.h"
@@ -168,9 +160,13 @@ ParamEqAudioProcessor::ParamEqAudioProcessor() // Construtor da classe
         1.0f
     )
         })
-    {
-        filters.resize(NUM_BANDS); // Inicializa o vetor de filtros
-    }   
+{
+    filters.resize(NUM_BANDS); // Inicializa o vetor de filtros
+    // inicializa valores anteriores do filtro para otimização
+    for (auto& val : lastFreq) val.store(-1.0f);
+    for (auto& val : lastQ) val.store(-1.0f);
+    for (auto& val : lastGain) val.store(-1.0f);
+}   
 
 ParamEqAudioProcessor::~ParamEqAudioProcessor() //Destrutor da classe
 {
@@ -297,46 +293,99 @@ void ParamEqAudioProcessor::pushBufferToAnalyzer(const juce::AudioBuffer<float>&
         spectrumAnalyzer->pushBuffer(buffer);
 }
 
-void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    juce::ScopedNoDenormals noDenormals;
-    
-    // 1. Limpeza de canais não utilizados
-    for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+std::vector<float> ParamEqAudioProcessor::getEqCurve(int numPoints, float sampleRate) 
+{
+    std::vector<float> curve(numPoints, 0.0f); // Valores em dB
 
-    // 2. Processamento dos filtros (todas as bandas)
-    for(int band = 0; band < NUM_BANDS; band++) {
-        // Atualiza coeficientes dos filtros
-        auto freq = parameters.getRawParameterValue("FREQ" + juce::String(band+1))->load();
-        auto q = parameters.getRawParameterValue("Q" + juce::String(band+1))->load();
-        auto gain = juce::Decibels::decibelsToGain(
-            parameters.getRawParameterValue("GAIN" + juce::String(band+1))->load()
-        );
+    for (int i = 0; i < numPoints; ++i) 
+    {
+        // Calcula a frequência em escala logarítmica
+        float freq = juce::mapToLog10(float(i) / (numPoints - 1), 20.0f, 20000.0f);
+        float totalMagnitude = 1.0f; // Começa com 0 dB (1.0 em escala linear)
         
-        *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-            spec.sampleRate, freq, q, gain
-        );
-        
-        // Aplica o filtro
-        auto block = juce::dsp::AudioBlock<float>(buffer);
-        filters[band].process(juce::dsp::ProcessContextReplacing<float>(block));
-    }
-
-    // 3. Conversão para mono APÓS todo o processamento (fora do loop de bandas)
-    juce::AudioBuffer<float> monoBuffer(1, buffer.getNumSamples());
-    const float gainFactor = 1.0f / std::sqrt(buffer.getNumChannels());
-    
-    for (int i = 0; i < buffer.getNumSamples(); ++i) {
-        float sum = 0.0f;
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
-            sum += buffer.getSample(ch, i);
+        // Calcula a resposta combinada de todos os filtros
+        for (int band = 0; band < NUM_BANDS; ++band) 
+        {
+            auto freqParam = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
+            auto qParam = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
+            auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
+            
+            // Apenas processa bandas ativas (ganho significativo)
+            if (std::abs(gainDb) > 0.1f) 
+            {
+                auto coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+                    sampleRate, freqParam, qParam, juce::Decibels::decibelsToGain(gainDb));
+                
+                // Multiplica as magnitudes (equivalente a somar em dB)
+                totalMagnitude *= coeffs->getMagnitudeForFrequency(freq, sampleRate);
+            }
         }
-        monoBuffer.setSample(0, i, gainFactor * sum);
+        
+        // Converte para dB e armazena
+        curve[i] = juce::Decibels::gainToDecibels(totalMagnitude);
     }
-    
-    // 4. Envia ao analisador (uma única vez por bloco)
-    pushBufferToAnalyzer(monoBuffer);
+
+    return curve;
 }
+
+void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) 
+{
+    juce::ScopedNoDenormals noDenormals;
+    midiMessages.clear();
+
+    // 1. Configuração inicial
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+    
+    // 2. Processamento principal (série com otimizações)
+    juce::dsp::AudioBlock<float> audioBlock(buffer);
+    juce::dsp::ProcessContextReplacing<float> context(audioBlock);
+
+    for (int band = 0; band < NUM_BANDS; ++band) 
+    {
+        // Só atualiza coeficientes se os parâmetros mudaram
+        auto freq = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
+        auto q = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
+        auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
+        
+        // Pula filtros inativos (ganho ≈ 0)
+        if (std::abs(gainDb) < 0.1f) continue;
+
+        // Atualiza coeficientes apenas se necessário (otimização crítica)
+        if (freq != lastFreq[band] || q != lastQ[band] || gainDb != lastGain[band]) 
+        {
+            *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+                spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
+            
+            // Armazena últimos valores
+            lastFreq[band] = freq;
+            lastQ[band] = q;
+            lastGain[band] = gainDb;
+        }
+
+        // Processa o filtro
+        filters[band].process(context);
+    }
+
+    // 3. Análise de espectro
+    if (spectrumAnalyzer != nullptr) 
+    {
+        juce::AudioBuffer<float> monoBuffer(1, numSamples);
+        const float gainFactor = 1.0f / std::sqrt(numChannels);
+        
+        for (int i = 0; i < numSamples; ++i) 
+        {
+            float sum = 0.0f;
+            for (int ch = 0; ch < numChannels; ++ch) 
+            {
+                sum += buffer.getSample(ch, i);
+            }
+            monoBuffer.setSample(0, i, gainFactor * sum);
+        }
+        pushBufferToAnalyzer(monoBuffer);
+    }
+}
+
 
 //==============================================================================
 bool ParamEqAudioProcessor::hasEditor() const

@@ -27,6 +27,8 @@ public:
 private:
     void processFFT();
     void createFrequencyPlotPath(juce::Path& path, const juce::Rectangle<int> bounds);
+    void createEQCurvePlot(juce::Graphics& g, const juce::Rectangle<int> bounds);
+
 
     // Referência ao processador de áudio
     ParamEqAudioProcessor& processor;

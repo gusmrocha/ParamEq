@@ -72,41 +72,26 @@ void SpectrumAnalyzer::processFFT() {
     nextFFTBlockReady = true;
 }
 
-// Renderização do espectro
+// Renderização do espectro e curva de equalização
 void SpectrumAnalyzer::paint(juce::Graphics& g) {
+    // Fundo preto
     g.fillAll(juce::Colours::black);
-    g.setColour(juce::Colours::grey.withAlpha(0.5f));
 
-    // Obtém a curva do EQ do processador
-    auto eqCurve = processor.getEqCurve(getWidth(), processor.getSampleRate());
-
-    // Desenha a curva do EQ
-    juce::Path eqPath;
-    eqPath.startNewSubPath(0, getHeight());
-
-    juce::Path path;
+    // Obtém e desenha o espectro de áudio (com lock)
+    juce::Path local_SpectrumPath;
     {
-        juce::ScopedLock sl(bufferLock); // **Trava durante a criação do Path**
-        createFrequencyPlotPath(path, getLocalBounds());
+        juce::ScopedLock sl(bufferLock);
+        createFrequencyPlotPath(local_SpectrumPath, getLocalBounds());
     }
+    g.setColour(juce::Colours::cyan.withAlpha(0.7f));
+    g.fillPath(local_SpectrumPath);
 
-    // Desenha a grade de frequência
-    for (float freq : {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f}) {
-        float x = std::log10(freq / 20.0f) * getWidth() / std::log10(20000.0f / 20.0f);
-        g.drawVerticalLine(x, 0, getHeight());
-    }
-    
-    {
-        juce::ScopedLock lock(pathLock);
-        g.setColour(juce::Colours::cyan.withAlpha(0.7f));
-        g.fillPath(path);
-    }
-    // Grade logarítmica
-    g.setColour(juce::Colours::grey.withAlpha(0.3f));
-    for (float freq : {20.0f, 100.0f, 1000.0f, 10000.0f}) {
-        float x = std::log10(freq / 20.0f) * getWidth() / std::log10(20000.0f / 20.0f);
-        g.drawVerticalLine(x, 0, getHeight());
-    }
+    // Obtém a curva de equalização
+   createEQCurvePlot(g, getLocalBounds());
+
+    // Desenha o contorno do espectro
+    g.setColour(juce::Colours::white);
+    g.strokePath(local_SpectrumPath, juce::PathStrokeType(1.0f));
 }
 
 // Cria o caminho para o gráfico de frequência
@@ -116,7 +101,7 @@ void SpectrumAnalyzer::createFrequencyPlotPath(juce::Path& path, const juce::Rec
     
     const float sampleRate = processor.getSampleRate();
     const float xScale = bounds.getWidth() / std::log10(20000.0f / 20.0f);
-        // Obtém o ponteiro de leitura do buffer FFT
+    // Obtém o ponteiro de leitura do buffer FFT
     const float* fftData = fftBuffer.getReadPointer(0);
     const float minDb = -100.0f;  // Mínimo = -100 dB
     const float maxDb = 6.0f;     // Máximo = +6 dB (permite clipping visual)
@@ -125,26 +110,70 @@ void SpectrumAnalyzer::createFrequencyPlotPath(juce::Path& path, const juce::Rec
         const float freq = bin * sampleRate / fftSize;
         if (freq < 20.0f || freq > 20000.0f) continue;
 
-        // **Adicione um limite mínimo para evitar valores muito baixos**
-         // Converte magnitude para dB e aplica limites
+        // Converte magnitude para dB e aplica limites
         float magnitudeDb = juce::Decibels::gainToDecibels(
             juce::jmax(fftData[bin], std::pow(10.0f, minDb / 20.0f)) // Evita -Inf
         );
         magnitudeDb = juce::jlimit(minDb, maxDb, magnitudeDb);
-        
-        // const float magnitude = juce::Decibels::gainToDecibels(fftData[bin]);
+
+        // Mapeia a frequência para a posição X e a magnitude para a posição Y
         float x = bounds.getX() + std::log10(freq / 20.0f) * xScale;
         float y = juce::jmap(magnitudeDb, minDb, maxDb, (float)bounds.getBottom(), (float)bounds.getY());
 
-        // **Garanta que o Path não saia dos limites**
+        // Garante que o Path não saia dos limites
         if (y < static_cast<float>(bounds.getY())) y = static_cast<float>(bounds.getY());
         if (y > static_cast<float>(bounds.getBottom())) y = static_cast<float>(bounds.getBottom());
 
         path.lineTo(x, y);
     }
 
-    // **Feche o Path corretamente (opcional, para preenchimento)**
+    // Feche o Path corretamente (opcional, para preenchimento)
     path.lineTo(static_cast<float>(bounds.getRight()), static_cast<float>(bounds.getBottom()));
+}
+
+void SpectrumAnalyzer::createEQCurvePlot(juce::Graphics& g, const juce::Rectangle<int> bounds) {
+    const float width = static_cast<float>(bounds.getWidth());
+    const float height = static_cast<float>(bounds.getHeight());
+
+    // 1. Constantes de escala (ajuste conforme necessário)
+    constexpr float minDb = -15.0f;
+    constexpr float maxDb = 15.0f;
+    
+    // 2. Função de mapeamento corrigida
+    auto dbToY = [height, minDb, maxDb](float db) {
+        return juce::jmap(db, minDb, maxDb, height, 0.0f);
+    };
+    
+    // 3. Obtém os dados da curva (já em dB)
+    auto eqCurve = processor.getEqCurve(bounds.getWidth(), 
+                                      static_cast<float>(processor.getSampleRate()));
+    
+    // 4. Cria o path da curva
+    juce::Path eqPath;
+    bool isFirstPoint = true;
+    
+    for (int x = 0; x < bounds.getWidth(); ++x) {
+        float magnitudeDb = eqCurve[x]; // Já está em dB
+        magnitudeDb = juce::jlimit(minDb, maxDb, magnitudeDb);
+        float y = dbToY(magnitudeDb);
+        
+        if (isFirstPoint) {
+            eqPath.startNewSubPath(0.0f, y);
+            isFirstPoint = false;
+        } else {
+            eqPath.lineTo(static_cast<float>(x), y);
+        }
+    }
+    
+    // 5. Desenha a linha de referência
+    g.setColour(juce::Colours::grey.withAlpha(0.5f));
+    float zeroDbY = dbToY(0.0f);
+    g.drawHorizontalLine(static_cast<int>(zeroDbY), 
+                        bounds.getX(), bounds.getRight());
+    
+    // 6. Desenha a curva
+    g.setColour(juce::Colours::white.withAlpha(0.9f));
+    g.strokePath(eqPath, juce::PathStrokeType(2.0f));
 }
 
 void SpectrumAnalyzer::timerCallback() {

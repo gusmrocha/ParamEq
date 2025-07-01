@@ -72,6 +72,9 @@ public:
     void pushBufferToAnalyzer(const juce::AudioBuffer<float>& buffer);
     SpectrumAnalyzer* spectrumAnalyzer = nullptr;
 
+    // Curva de equalizacao
+    std::vector<float> getEqCurve(int numPoints, float sampleRate);
+
 private:
     //====================================Defini��o do filtro==========================================
     std::vector<juce::dsp::ProcessorDuplicator<
@@ -80,6 +83,11 @@ private:
 >> filters; // Vetor para múltiplos filtro
     juce::dsp::ProcessSpec spec;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParamEqAudioProcessor)
+    
+    // armazena os valores anteriores do filtro para otimização
+    std::array<std::atomic<float>, NUM_BANDS> lastFreq;
+    std::array<std::atomic<float>, NUM_BANDS> lastQ;
+    std::array<std::atomic<float>, NUM_BANDS> lastGain;
 
     juce::CriticalSection analyzerLock;
 };
