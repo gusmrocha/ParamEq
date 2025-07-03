@@ -21,6 +21,16 @@
 // Declaração antecipada para quebrar dependência circular
 class SpectrumAnalyzer;
 
+// Enumeração para os tipos de filtro
+enum FilterType {
+    PEAK,
+    LOW_SHELF,
+    HIGH_SHELF,
+    LOW_PASS,
+    HIGH_PASS
+};
+
+FilterType getMappedFilterType(int bandIndex, int choiceIndex);
 
 class ParamEqAudioProcessor  : public juce::AudioProcessor
 {
@@ -67,6 +77,7 @@ public:
 
     bool supportsDoublePrecisionProcessing() const override { return false; }
     static constexpr int NUM_BANDS = 8;
+    static juce::String getFilterTypeName(FilterType type);
 
     // Espectro
     void pushBufferToAnalyzer(const juce::AudioBuffer<float>& buffer);
@@ -88,6 +99,9 @@ private:
     std::array<std::atomic<float>, NUM_BANDS> lastFreq;
     std::array<std::atomic<float>, NUM_BANDS> lastQ;
     std::array<std::atomic<float>, NUM_BANDS> lastGain;
+
+    std::array<std::atomic<FilterType>, NUM_BANDS> filterTypes;
+    std::array<std::atomic<FilterType>, NUM_BANDS> lastFilterType;
 
     juce::CriticalSection analyzerLock;
 };

@@ -7,6 +7,18 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
 {
     const int numBands = ParamEqAudioProcessor::NUM_BANDS;
 
+    // Configuração dos ComboBoxes para tipos de filtro
+    filterTypeSelector1.addItemList({"Peak", "Low Shelf", "High Pass"}, 1);
+    filterTypeSelector8.addItemList({"Peak", "High Shelf", "Low Pass"}, 1);
+    
+    addAndMakeVisible(filterTypeSelector1);
+    addAndMakeVisible(filterTypeSelector8);
+    
+    typeAttachment1 = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.parameters, "TYPE1", filterTypeSelector1);
+    typeAttachment8 = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.parameters, "TYPE8", filterTypeSelector8);
+
     for (int band = 0; band < numBands; band++) {
         // === Configuração dos Sliders ===
         // Frequência
@@ -22,7 +34,7 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
 
         // Gain
         gainSliders[band].setSliderStyle(juce::Slider::LinearVertical);
-        gainSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+        gainSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
         gainSliders[band].setTextValueSuffix(" dB");
 
         // === Visibilidade ===
@@ -62,39 +74,51 @@ void ParamEqAudioProcessorEditor::paint (juce::Graphics& g)
 void ParamEqAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
-    spectrumAnalyzer->setBounds(area.removeFromTop(200)); // 200px de altura
+
+    // 1. Espectro maior
+    const int spectrumHeight = 220;
+    spectrumAnalyzer->setBounds(area.removeFromTop(spectrumHeight));
 
     const int numBands = ParamEqAudioProcessor::NUM_BANDS;
-    const int bandMargin = 5;
+    const int bandSpacing = 6;
+    const int bandWidth = (area.getWidth() - bandSpacing * (numBands - 1)) / numBands;
 
-    const int minBandWidth = 100;
-    const int bandWidth = juce::jmax(minBandWidth, (area.getWidth() - (numBands - 1) * bandMargin) / numBands);
+    const int comboHeight = 25;
+    const int knobSize = 65;          // ⇦ aumentamos os knobs
+    const int knobSpacing = 6;
+    const int gainWidth = 34;
+    const int gainHeight = 90;        // ⇦ reduzimos os sliders de ganho
 
-    for (int band = 0; band < numBands; band++) {
-        auto bandArea = area.removeFromLeft(bandWidth);
-        if (band < numBands - 1)
-            area.removeFromLeft(bandMargin);
+    for (int band = 0; band < numBands; ++band)
+    {
+        int x = area.getX() + band * (bandWidth + bandSpacing);
+        int y = area.getY();
 
-        // === Área dos knobs (superior) ===
-        auto knobsArea = bandArea.removeFromTop(160);
+        juce::Rectangle<int> bandArea(x, y, bandWidth, area.getHeight());
 
-        const int knobSize = 70;
-        const int knobSpacing = 10;
-        const int knobsTotalWidth = knobSize * 2 + knobSpacing;
+        // ComboBox no topo
+        if (band == 0)
+            filterTypeSelector1.setBounds(bandArea.removeFromTop(comboHeight).reduced(2));
+        else if (band == 7)
+            filterTypeSelector8.setBounds(bandArea.removeFromTop(comboHeight).reduced(2));
+        else
+            bandArea.removeFromTop(comboHeight + 2); // alinhamento consistente
 
-        const int knobsStartX = knobsArea.getX() + (knobsArea.getWidth() - knobsTotalWidth) / 2;
-        const int knobsY = knobsArea.getY() + (knobsArea.getHeight() - knobSize) / 2;
+        // Calcular área restante
+        const int totalHeight = bandArea.getHeight();
+        const int knobsY = bandArea.getY() + 5;
 
-        freqSliders[band].setBounds(knobsStartX, knobsY, knobSize, knobSize);
-        qSliders[band].setBounds(knobsStartX + knobSize + knobSpacing, knobsY, knobSize, knobSize);
+        // Centrando os knobs horizontalmente
+        int knobsTotalWidth = (2 * knobSize + knobSpacing);
+        int knobsX = x + (bandWidth - knobsTotalWidth) / 2;
 
-        // === Área do slider de Gain (inferior) ===
-        const int gainWidth = 40;
-        const int gainHeight = 180;
+        freqSliders[band].setBounds(knobsX, knobsY, knobSize, knobSize);
+        qSliders[band].setBounds(knobsX + knobSize + knobSpacing, knobsY, knobSize, knobSize);
 
-        const int gainX = bandArea.getX() + (bandArea.getWidth() - gainWidth) / 2;
-        const int gainY = bandArea.getY() + (bandArea.getHeight() - gainHeight) / 2;
-
+        // Gain: fixo embaixo, alinhado
+        int gainX = x + (bandWidth - gainWidth) / 2;
+        int gainY = bandArea.getBottom() - gainHeight;
         gainSliders[band].setBounds(gainX, gainY, gainWidth, gainHeight);
     }
 }
+
