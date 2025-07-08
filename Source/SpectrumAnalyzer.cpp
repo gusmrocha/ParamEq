@@ -238,54 +238,41 @@ void SpectrumAnalyzer::drawFrequencyGrid(juce::Graphics& g, const juce::Rectangl
     const float height = static_cast<float>(bounds.getHeight());
     const float xScale = width / std::log10(20000.0f / 20.0f);
 
-    // Configurações consistentes
-    const float mainLineAlpha = 0.25f;  // Alpha para todas as linhas principais (igual para 100Hz, 1k, 10k)
-    const float auxLineAlpha = 0.15f;   // Alpha para linhas auxiliares
-    const float lineThickness = 0.5f;   // Espessura uniforme para todas as linhas
+    const float lineThickness = 0.5f;
+    const float mainAlpha = 0.35f;
+    const float auxAlpha = 0.15f;
 
-    // 1. Linhas auxiliares (mais suaves)
-    g.setColour(juce::Colours::grey.withAlpha(auxLineAlpha));
+    std::vector<float> freqs;
 
-    const std::vector<std::pair<float, float>> frequencyRanges = {
-        {20.0f, 100.0f}, {100.0f, 1000.0f}, {1000.0f, 10000.0f}, {10000.0f, 20000.0f}
-    };
-
-    for (const auto& range : frequencyRanges) {
-        const float ratio = range.second / range.first;
-        const int subdivisions = (ratio >= 10) ? 9 : static_cast<int>(ratio) - 1;
-
-        for (int i = 1; i < subdivisions; ++i) {
-            float freq = range.first * std::pow(10.0f, i * std::log10(ratio) / subdivisions);
-            float x = std::log10(freq / 20.0f) * xScale;
-            
-            juce::Path line;
-            line.startNewSubPath(x, bounds.getY());
-            line.lineTo(x, bounds.getBottom());
-            g.strokePath(line, juce::PathStrokeType(lineThickness));
+    // Gera frequências logarítmicas: 20, 30, 40, ..., 90, 100, 200, ..., 10000, ..., 20000
+    for (int decade = 1; decade <= 4; ++decade) { // 10^1 até 10^4 (10Hz a 10000Hz)
+        float base = std::pow(10.0f, (float)decade);
+        for (int i = 1; i < 10; ++i) {
+            float f = i * base;
+            if (f >= 20.0f && f <= 20000.0f)
+                freqs.push_back(f);
         }
     }
 
-    // 2. Linhas principais (100Hz, 1k, 10k - mesma espessura mas alpha ligeiramente maior)
-    g.setColour(juce::Colours::grey.withAlpha(mainLineAlpha)); // Alpha consistente para todas
+    // Adiciona 20000 Hz manualmente
+    freqs.push_back(20000.0f);
 
-    const std::vector<float> mainFrequencies = {100.0f, 1000.0f, 10000.0f};
-    for (float freq : mainFrequencies) {
-        float x = std::log10(freq / 20.0f) * xScale;
-        
-        juce::Path line;
-        line.startNewSubPath(x, bounds.getY());
-        line.lineTo(x, bounds.getBottom());
-        g.strokePath(line, juce::PathStrokeType(lineThickness)); // Mesma espessura que as auxiliares
-        
-        // Rótulos (mesmo estilo para todos)
-        juce::String freqText = (freq < 1000.0f) 
-            ? juce::String(freq, 0) + " Hz" 
-            : juce::String(freq / 1000.0f, 1) + " kHz";
-        
-        g.setColour(juce::Colours::white.withAlpha(0.8f));
-        g.drawText(freqText, 
-                  x - 25, bounds.getBottom() - 20, 70, 20, 
-                  juce::Justification::centred);
-        g.setColour(juce::Colours::grey.withAlpha(mainLineAlpha)); // Restaura cor
+    // Desenha as linhas
+    for (float freq : freqs) {
+        float x = std::log10(freq / 20.0f) * xScale + bounds.getX();
+
+        bool isMain = (freq == 100.0f || freq == 1000.0f || freq == 10000.0f);
+
+        g.setColour(juce::Colours::grey.withAlpha(isMain ? mainAlpha : auxAlpha));
+        g.drawVerticalLine((int)x, (float)bounds.getY(), (float)bounds.getBottom());
+
+        if (isMain) {
+            juce::String label = (freq < 1000.0f)
+                ? juce::String(freq, 0) + " Hz"
+                : juce::String(freq / 1000.0f, 1) + " kHz";
+
+            g.setColour(juce::Colours::white.withAlpha(0.8f));
+            g.drawText(label, x - 25, bounds.getBottom() - 20, 60, 20, juce::Justification::centred);
+        }
     }
 }
