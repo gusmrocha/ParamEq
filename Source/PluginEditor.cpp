@@ -181,12 +181,12 @@ void ParamEqAudioProcessorEditor::resized()
         juce::Rectangle<int> bandArea(x, y, bandWidth, area.getHeight());
 
         // 1. ComboBox no topo (bandas 1 e 8)
+        juce::Rectangle<int> comboArea = bandArea.removeFromTop(comboHeight + 2);
+
         if (band == 0)
-            filterTypeSelector1.setBounds(bandArea.removeFromTop(comboHeight).reduced(2));
+            filterTypeSelector1.setBounds(comboArea.reduced(2));
         else if (band == 7)
-            filterTypeSelector8.setBounds(bandArea.removeFromTop(comboHeight).reduced(2));
-        else
-            bandArea.removeFromTop(comboHeight + 2);
+            filterTypeSelector8.setBounds(comboArea.reduced(2));
 
         // 2. Labels e knobs de frequência/Q
         int knobsTotalWidth = (2 * knobSize + knobSpacing);
