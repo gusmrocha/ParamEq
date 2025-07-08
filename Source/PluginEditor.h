@@ -12,18 +12,33 @@ class CustomLookAndFeel : public juce::LookAndFeel_V4
 public:
     CustomLookAndFeel()
     {
-        // Cores globais suaves
+        // Configurações globais existentes (mantidas)
         setColour(juce::Slider::thumbColourId, juce::Colours::skyblue);
         setColour(juce::Slider::trackColourId, juce::Colours::lightgrey);
         setColour(juce::Slider::backgroundColourId, juce::Colours::darkslategrey);
         setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
         setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
         setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::grey.darker());
+
+        // Esquema de cores por banda (novo)
+        bandColors = {
+            juce::Colour(255, 100, 100),   // Banda 1: Vermelho
+            juce::Colour(255, 180, 100),   // Banda 2: Laranja
+            juce::Colour(255, 255, 100),   // Banda 3: Amarelo
+            juce::Colour(180, 255, 100),   // Banda 4: Verde-limão
+            juce::Colour(100, 255, 100),   // Banda 5: Verde
+            juce::Colour(100, 255, 255),   // Banda 6: Ciano
+            juce::Colour(100, 180, 255),   // Banda 7: Azul-claro
+            juce::Colour(180, 100, 255)    // Banda 8: Roxo
+        };
     }
 
+    // Mantém os métodos drawRotarySlider e drawLinearSlider existentes
+    // apenas adicionando a lógica de cores
+
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
-                          float sliderPosProportional, float rotaryStartAngle,
-                          float rotaryEndAngle, juce::Slider& slider) override
+                        float sliderPosProportional, float rotaryStartAngle,
+                        float rotaryEndAngle, juce::Slider& slider) override
     {
         auto radius = juce::jmin(width / 2, height / 2) - 4.0f;
         auto centreX = x + width * 0.5f;
@@ -33,38 +48,54 @@ public:
         auto rw = radius * 2.0f;
         auto angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
 
-        // Background
-        g.setColour(juce::Colours::dimgrey);
+        // Fundo - usando cor da banda com opacidade reduzida
+        g.setColour(getBandColor().withAlpha(0.3f));
         g.fillEllipse(rx, ry, rw, rw);
 
-        // Outline
-        g.setColour(juce::Colours::black);
+        // Contorno
+        g.setColour(juce::Colours::black.withAlpha(0.5f));
         g.drawEllipse(rx, ry, rw, rw, 1.5f);
 
-        // Thumb
+        // Ponteiro
         juce::Path p;
         auto thumbLength = radius * 0.6f;
-        auto thumbThickness = 2.0f;
-        p.addRectangle(-thumbThickness * 0.5f, -radius, thumbThickness, thumbLength);
-
-        g.setColour(slider.findColour(juce::Slider::thumbColourId));
+        p.addRectangle(-2.0f, -radius, 4.0f, thumbLength);
+        
+        g.setColour(getBandColor().brighter(0.2f));
         g.fillPath(p, juce::AffineTransform::rotation(angle).translated(centreX, centreY));
     }
 
     void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
-                          float sliderPos, float minSliderPos, float maxSliderPos,
-                          const juce::Slider::SliderStyle style, juce::Slider& slider) override
+                        float sliderPos, float minSliderPos, float maxSliderPos,
+                        const juce::Slider::SliderStyle style, juce::Slider& slider) override
     {
         auto trackWidth = 4.0f;
-
         juce::Rectangle<float> track(x + width * 0.5f - trackWidth * 0.5f, y, trackWidth, height);
-        g.setColour(slider.findColour(juce::Slider::trackColourId));
+        
+        // Trilha - cor da banda com opacidade
+        g.setColour(getBandColor().withAlpha(0.4f));
         g.fillRect(track);
 
+        // Thumb
         juce::Rectangle<float> thumbRect(x + width * 0.5f - 6.0f, sliderPos - 6.0f, 12.0f, 12.0f);
-        g.setColour(slider.findColour(juce::Slider::thumbColourId));
+        g.setColour(getBandColor());
         g.fillEllipse(thumbRect);
     }
+
+    void setCurrentBand(int band) { currentBand = band % bandColors.size(); }
+    juce::Colour getBandColor() const { return bandColors[currentBand]; }
+
+    juce::Colour getBandColor(int band) const { 
+        return bandColors[band % bandColors.size()]; 
+    }
+    
+    void updateBandColors(const std::vector<juce::Colour>& newColors) {
+        bandColors = newColors;
+    }
+
+private:
+    std::vector<juce::Colour> bandColors;
+    int currentBand = 0;
 };
 
 
