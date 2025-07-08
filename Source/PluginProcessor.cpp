@@ -469,7 +469,7 @@ void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     break;
             }
             
-            // Armazene últimos valores
+            // Armazena últimos valores
             lastFreq[band] = freq;
             lastQ[band] = q;
             lastGain[band] = gainDb;

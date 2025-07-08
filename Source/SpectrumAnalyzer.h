@@ -4,7 +4,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 
-// 1. Primeiro faça uma declaração antecipada correta
+// Declaração antecipada do processador de áudio para evitar dependências circulares.
 class ParamEqAudioProcessor;
 
 class SpectrumAnalyzer : public juce::Component,
@@ -29,6 +29,9 @@ private:
     void createFrequencyPlotPath(juce::Path& path, const juce::Rectangle<int> bounds);
     void createEQCurvePlot(juce::Graphics& g, const juce::Rectangle<int> bounds);
 
+    // Desenho de grades de referência
+    void drawDbGrid(juce::Graphics& g, const juce::Rectangle<int> bounds);
+    void drawFrequencyGrid(juce::Graphics& g, const juce::Rectangle<int> bounds);
 
     // Referência ao processador de áudio
     ParamEqAudioProcessor& processor;
@@ -38,14 +41,14 @@ private:
     juce::CriticalSection pathLock;
     juce::CriticalSection bufferLock;
     
-    // Configuração FFT
+    // Configurações FFT
     static constexpr int fftOrder = 12;
     static constexpr int fftSize = 1 << fftOrder;
     juce::dsp::FFT forwardFFT;
     
     // Buffers
-    juce::AudioBuffer<float> fftBuffer;  // Substitui fftData
-    juce::AudioBuffer<float> fifoBuffer; // Substitui fifo
+    juce::AudioBuffer<float> fftBuffer;
+    juce::AudioBuffer<float> fifoBuffer;
     int fifoIndex = 0;
     std::atomic<bool> nextFFTBlockReady{false};
 };

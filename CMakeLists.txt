@@ -62,6 +62,7 @@ juce_add_plugin(${PROJECT_NAME}
         PRODUCT_NAME "ParamEq"
 )
 
+
 # How we want our SourceFiles to appear in our IDE
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SourceFiles})
 

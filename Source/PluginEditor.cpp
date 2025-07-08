@@ -37,6 +37,11 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
         gainSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
         gainSliders[band].setTextValueSuffix(" dB");
 
+        // Look and Feel customizados
+        freqSliders[band].setLookAndFeel(&customLNF);
+        qSliders[band].setLookAndFeel(&customLNF);
+        gainSliders[band].setLookAndFeel(&customLNF);
+
         // === Visibilidade ===
         addAndMakeVisible(freqSliders[band]);
         addAndMakeVisible(qSliders[band]);
@@ -58,11 +63,18 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
     addAndMakeVisible(spectrumAnalyzer.get());
     audioProcessor.spectrumAnalyzer = spectrumAnalyzer.get();
 
-    setSize(1000, 600); // Aumente a altura para o espectro
+    setSize(1000, 400); //
 }
 
 ParamEqAudioProcessorEditor::~ParamEqAudioProcessorEditor() {
     audioProcessor.spectrumAnalyzer = nullptr; // Limpa o ponteiro do analisador de espectro
+    
+    // Limpa os Look and Feel para evitar vazamentos de memória
+    for (int band = 0; band < ParamEqAudioProcessor::NUM_BANDS; ++band) {
+    freqSliders[band].setLookAndFeel(nullptr);
+    qSliders[band].setLookAndFeel(nullptr);
+    gainSliders[band].setLookAndFeel(nullptr);
+}
 }
 
 //==============================================================================
@@ -75,8 +87,8 @@ void ParamEqAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
 
-    // 1. Espectro maior
-    const int spectrumHeight = 220;
+    // 1. Espectro - mantemos a altura atual
+    const int spectrumHeight = 180;
     spectrumAnalyzer->setBounds(area.removeFromTop(spectrumHeight));
 
     const int numBands = ParamEqAudioProcessor::NUM_BANDS;
@@ -84,10 +96,16 @@ void ParamEqAudioProcessorEditor::resized()
     const int bandWidth = (area.getWidth() - bandSpacing * (numBands - 1)) / numBands;
 
     const int comboHeight = 25;
-    const int knobSize = 65;          // ⇦ aumentamos os knobs
+    const int knobSize = 60;
     const int knobSpacing = 6;
-    const int gainWidth = 34;
-    const int gainHeight = 90;        // ⇦ reduzimos os sliders de ganho
+    const int gainWidth = 60;
+    const int gainHeight = 90;
+
+    // Calculamos a altura necessária para os controles
+    const int controlsTotalHeight = comboHeight + knobSize + gainHeight + 10; // 10 de espaçamento interno
+
+    // Ajustamos a área para usar apenas o espaço necessário
+    area.setHeight(controlsTotalHeight);
 
     for (int band = 0; band < numBands; ++band)
     {
@@ -102,23 +120,18 @@ void ParamEqAudioProcessorEditor::resized()
         else if (band == 7)
             filterTypeSelector8.setBounds(bandArea.removeFromTop(comboHeight).reduced(2));
         else
-            bandArea.removeFromTop(comboHeight + 2); // alinhamento consistente
+            bandArea.removeFromTop(comboHeight + 2);
 
-        // Calcular área restante
-        const int totalHeight = bandArea.getHeight();
-        const int knobsY = bandArea.getY() + 5;
-
-        // Centrando os knobs horizontalmente
+        // Posicionar knobs
         int knobsTotalWidth = (2 * knobSize + knobSpacing);
         int knobsX = x + (bandWidth - knobsTotalWidth) / 2;
+        
+        freqSliders[band].setBounds(knobsX, bandArea.getY(), knobSize, knobSize);
+        qSliders[band].setBounds(knobsX + knobSize + knobSpacing, bandArea.getY(), knobSize, knobSize);
 
-        freqSliders[band].setBounds(knobsX, knobsY, knobSize, knobSize);
-        qSliders[band].setBounds(knobsX + knobSize + knobSpacing, knobsY, knobSize, knobSize);
-
-        // Gain: fixo embaixo, alinhado
+        // Posicionar gain slider diretamente abaixo dos knobs
         int gainX = x + (bandWidth - gainWidth) / 2;
-        int gainY = bandArea.getBottom() - gainHeight;
+        int gainY = bandArea.getY() + knobSize + 5;
         gainSliders[band].setBounds(gainX, gainY, gainWidth, gainHeight);
     }
 }
-
