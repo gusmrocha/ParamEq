@@ -8,16 +8,22 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
     const int numBands = ParamEqAudioProcessor::NUM_BANDS;
 
     // Configuração dos ComboBoxes para tipos de filtro
-    filterTypeSelector1.addItemList({"Peak", "Low Shelf", "High Pass"}, 1);
-    filterTypeSelector8.addItemList({"Peak", "High Shelf", "Low Pass"}, 1);
+    for (int band = 0; band < ParamEqAudioProcessor::NUM_BANDS; ++band)
+    {
+        // Configuração do ComboBox
+        filterTypeSelectors[band].addItemList({"Peak", "Low Shelf", "High Shelf", "Low Pass", "High Pass"}, 1);
+        addAndMakeVisible(filterTypeSelectors[band]);
+        
+        // Crie o attachment
+        typeAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+            audioProcessor.parameters, "TYPE" + juce::String(band + 1), filterTypeSelectors[band]));
+        
+        // Estilo visual
+        filterTypeSelectors[band].setColour(juce::ComboBox::backgroundColourId, 
+                                          customLNF.getBandColor(band).withAlpha(0.2f));
+        filterTypeSelectors[band].setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    }
     
-    addAndMakeVisible(filterTypeSelector1);
-    addAndMakeVisible(filterTypeSelector8);
-    
-    typeAttachment1 = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.parameters, "TYPE1", filterTypeSelector1);
-    typeAttachment8 = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.parameters, "TYPE8", filterTypeSelector8);
 
     for (int band = 0; band < numBands; band++) {
         // === Configuração dos Sliders ===
@@ -182,11 +188,8 @@ void ParamEqAudioProcessorEditor::resized()
 
         // 1. ComboBox no topo (bandas 1 e 8)
         juce::Rectangle<int> comboArea = bandArea.removeFromTop(comboHeight + 2);
+        filterTypeSelectors[band].setBounds(comboArea.reduced(2));
 
-        if (band == 0)
-            filterTypeSelector1.setBounds(comboArea.reduced(2));
-        else if (band == 7)
-            filterTypeSelector8.setBounds(comboArea.reduced(2));
 
         // 2. Labels e knobs de frequência/Q
         int knobsTotalWidth = (2 * knobSize + knobSpacing);

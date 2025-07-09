@@ -30,8 +30,6 @@ enum FilterType {
     HIGH_PASS
 };
 
-FilterType getMappedFilterType(int bandIndex, int choiceIndex);
-
 class ParamEqAudioProcessor  : public juce::AudioProcessor
 {
 public:
@@ -75,9 +73,25 @@ public:
     // Sistema de par�metros
     juce::AudioProcessorValueTreeState parameters;
 
+    juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
+
     bool supportsDoublePrecisionProcessing() const override { return false; }
     static constexpr int NUM_BANDS = 8;
     static juce::String getFilterTypeName(FilterType type);
+
+    // tipos de filtro
+    static FilterType getMappedFilterType(int choiceIndex)
+    {
+        switch (choiceIndex)
+        {
+            case 0:  return PEAK;
+            case 1:  return LOW_SHELF;
+            case 2:  return HIGH_SHELF;
+            case 3:  return LOW_PASS;
+            case 4:  return HIGH_PASS;
+            default: return PEAK;
+        }
+    }
 
     // Espectro
     void pushBufferToAnalyzer(const juce::AudioBuffer<float>& buffer);
@@ -104,4 +118,7 @@ private:
     std::array<std::atomic<FilterType>, NUM_BANDS> lastFilterType;
 
     juce::CriticalSection analyzerLock;
+
+    // Cria layout de parametros
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 };

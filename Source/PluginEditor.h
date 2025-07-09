@@ -121,8 +121,7 @@ private:
     std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> freqSliders;
     std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> gainSliders;
     std::array<juce::Slider, ParamEqAudioProcessor::NUM_BANDS> qSliders;
-    juce::ComboBox filterTypeSelector1; // Seletor de filtro para banda 1
-    juce::ComboBox filterTypeSelector8; // Seletor de filtro para banda 8
+    std::array<juce::ComboBox, ParamEqAudioProcessor::NUM_BANDS> filterTypeSelectors;
 
     // Label para os controles
     std::array<juce::Label, ParamEqAudioProcessor::NUM_BANDS> freqLabels;
@@ -139,8 +138,7 @@ private:
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> qAttachments;
 
     // Attachments para os ComboBoxes de tipo de filtro
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> typeAttachment1;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> typeAttachment8;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> typeAttachments;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParamEqAudioProcessorEditor)
 };

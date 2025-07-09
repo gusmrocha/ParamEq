@@ -14,188 +14,71 @@ juce::String ParamEqAudioProcessor::getFilterTypeName(FilterType type) {
 }
 
 //=================================== Construtor/Destrutor ===========================================
-ParamEqAudioProcessor::ParamEqAudioProcessor() // Construtor da classe
-#ifndef JucePlugin_PreferredChannelConfigurations  
+ParamEqAudioProcessor::ParamEqAudioProcessor()
+#ifndef JucePlugin_PreferredChannelConfigurations
     : AudioProcessor(BusesProperties()
-#if ! JucePlugin_IsMidiEffect  
-#if ! JucePlugin_IsSynth  
+#if ! JucePlugin_IsMidiEffect
+#if ! JucePlugin_IsSynth
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
-#endif  
+#endif
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
-#endif  
-    )
-#endif  
-    , parameters(*this, nullptr, "Params", {
-        std::make_unique<juce::AudioParameterFloat>(
-            "FREQ1",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN1",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q1",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-        std::make_unique<juce::AudioParameterChoice>(
-                "TYPE1",
-                "Filter Type",
-                juce::StringArray({"Peak", "Low Shelf", "High Pass"}),
-                0
-            ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "FREQ2",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN2",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q2",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-            std::make_unique<juce::AudioParameterFloat>(
-            "FREQ3",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN3",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q3",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-            std::make_unique<juce::AudioParameterFloat>(
-            "FREQ4",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN4",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q4",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-            std::make_unique<juce::AudioParameterFloat>(
-            "FREQ5",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN5",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q5",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-            std::make_unique<juce::AudioParameterFloat>(
-            "FREQ6",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN6",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q6",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-            std::make_unique<juce::AudioParameterFloat>(
-            "FREQ7",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN7",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q7",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-            std::make_unique<juce::AudioParameterFloat>(
-            "FREQ8",
-            "Frequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "GAIN8",
-            "Gain",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
-            0.0f
-        ),
-        std::make_unique<juce::AudioParameterFloat>(
-            "Q8",
-            "Q Factor",
-            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
-            1.0f
-        ),
-        std::make_unique<juce::AudioParameterChoice>(
-                "TYPE8",
-                "Filter Type",
-                juce::StringArray({"Peak", "High Shelf", "Low Pass"}),
-                0
-        ),
-    })
+#endif
+    ),
+#endif
+    parameters(*this, nullptr, "Params", createParameterLayout())
 {
-    filters.resize(NUM_BANDS); // Inicializa o vetor de filtros
-    // inicializa valores anteriores do filtro para otimização
+    // Inicialize os filtros (mantenha o existente)
+    filters.resize(NUM_BANDS);
+    
+    // Inicialize valores anteriores para otimização
     for (auto& val : lastFreq) val.store(-1.0f);
     for (auto& val : lastQ) val.store(-1.0f);
     for (auto& val : lastGain) val.store(-1.0f);
-
     for (auto& type : filterTypes) type = PEAK;
     for (auto& lastType : lastFilterType) lastType = PEAK;
-    filterTypes[0] = PEAK;  // Banda 1 começa como Peak
-    filterTypes[7] = PEAK;  // Banda 8 começa como Peak
+}
 
-}   
+juce::AudioProcessorValueTreeState::ParameterLayout ParamEqAudioProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    for (int band = 0; band < NUM_BANDS; ++band)
+    {
+        // Parâmetro de frequência
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            "FREQ" + juce::String(band + 1),
+            "Frequency " + juce::String(band + 1),
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
+            1000.0f
+        ));
+
+        // Parâmetro de ganho
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            "GAIN" + juce::String(band + 1),
+            "Gain " + juce::String(band + 1),
+            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+            0.0f
+        ));
+
+        // Parâmetro de Q
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            "Q" + juce::String(band + 1),
+            "Q " + juce::String(band + 1),
+            juce::NormalisableRange<float>(0.1f, 7.0f, 0.01f),
+            1.0f
+        ));
+
+        // Parâmetro de tipo de filtro
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            "TYPE" + juce::String(band + 1),
+            "Filter Type " + juce::String(band + 1),
+            juce::StringArray({"Peak", "Low Shelf", "High Shelf", "Low Pass", "High Pass"}),
+            0 // Valor padrão: Peak
+        ));
+    }
+
+    return {params.begin(), params.end()};
+}
 
 ParamEqAudioProcessor::~ParamEqAudioProcessor() //Destrutor da classe
 {
@@ -322,30 +205,16 @@ void ParamEqAudioProcessor::pushBufferToAnalyzer(const juce::AudioBuffer<float>&
         spectrumAnalyzer->pushBuffer(buffer);
 }
 
-FilterType getMappedFilterType(int bandIndex, int choiceIndex)
+FilterType getMappedFilterType(int choiceIndex)
 {
-    if (bandIndex == 0)  // Banda 1: {"Peak", "Low Shelf", "High Pass"}
-    {
-        switch (choiceIndex)
-        {
-            case 0: return PEAK;
-            case 1: return LOW_SHELF;
-            case 2: return HIGH_PASS;
-            default: return PEAK;
-        }
+    switch (choiceIndex) {
+        case 0: return PEAK;
+        case 1: return LOW_SHELF;
+        case 2: return HIGH_SHELF;
+        case 3: return LOW_PASS;
+        case 4: return HIGH_PASS;
+        default: return PEAK;
     }
-    else if (bandIndex == 7)  // Banda 8: {"Peak", "High Shelf", "Low Pass"}
-    {
-        switch (choiceIndex)
-        {
-            case 0: return PEAK;
-            case 1: return HIGH_SHELF;
-            case 2: return LOW_PASS;
-            default: return PEAK;
-        }
-    }
-
-    return PEAK;
 }
 
 
@@ -363,17 +232,15 @@ std::vector<float> ParamEqAudioProcessor::getEqCurve(int numPoints, float sample
             auto freqParam = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
             auto qParam = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
             auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
-            
-            FilterType type = (band == 0 || band == 7) ? 
-                getMappedFilterType(band, parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load())
-                : PEAK;
-            
-            if (type == LOW_PASS || type == HIGH_PASS || std::abs(gainDb) > 0.1f) 
+            auto typeValue = parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load();
+            FilterType currentType = getMappedFilterType(static_cast<int>(typeValue));
+
+            if (currentType == LOW_PASS || currentType == HIGH_PASS || std::abs(gainDb) > 0.1f) 
             {
                 // Usamos ponteiro bruto temporário para os coeficientes
                 juce::ReferenceCountedObjectPtr<juce::dsp::IIR::Coefficients<float>> coeffs;
                 
-                switch (type) {
+                switch (currentType) {
                     case PEAK:
                         coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
                             sampleRate, freqParam, qParam, juce::Decibels::decibelsToGain(gainDb));
@@ -426,14 +293,9 @@ void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         auto freq = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
         auto q = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
         auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
-        
-        // Obtenha o tipo de filtro (apenas para bandas 1 e 8)
-        FilterType currentType = PEAK;
-        if (band == 0 || band == 7) {
-            int choiceIndex = parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load();
-            currentType = getMappedFilterType(band, choiceIndex);
-            filterTypes[band] = currentType;
-        }
+        FilterType currentType = getMappedFilterType(
+            parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load()
+        );
 
         // Pule filtros inativos (exceto passa-baixa/alta)
         if (std::abs(gainDb) < 0.1f && currentType != LOW_PASS && currentType != HIGH_PASS) continue;
