@@ -7,7 +7,7 @@ SpectrumAnalyzer::SpectrumAnalyzer(ParamEqAudioProcessor& p)
       fifoBuffer(1, fftSize)      // 1 canal, fftSize samples
 {
     setBufferedToImage(true); // Habilita double buffering
-    startTimerHz(30); // Atualização a 30 FPS
+    startTimerHz(40); // Atualização a 40 FPS
     setOpaque(true);
     fftBuffer.clear();
     fifoBuffer.clear();
@@ -15,7 +15,6 @@ SpectrumAnalyzer::SpectrumAnalyzer(ParamEqAudioProcessor& p)
 }
 
 SpectrumAnalyzer::~SpectrumAnalyzer() {
-    //processor.parameters.removeParameterListener("FREQ", this);
     stopTimer(); // Para o timer antes de destruir
     juce::ScopedLock sl(bufferLock);
 }
@@ -150,9 +149,11 @@ void SpectrumAnalyzer::createEQCurvePlot(juce::Graphics& g, const juce::Rectangl
         return juce::jmap(db, minDb, maxDb, height, 0.0f);
     };
     
-    // Obtém os dados da curva
-    auto eqCurve = processor.getEqCurve(bounds.getWidth(), 
-                                      static_cast<float>(processor.getSampleRate()));
+    // Obtém os dados da curva do Cache
+    const auto& eqCurve = processor.cachedEqCurve;
+    
+    if (eqCurve.empty() || eqCurve.size() < bounds.getWidth())
+    return;
     
     // Cria o path da curva
     juce::Path eqPath;
@@ -187,14 +188,21 @@ void SpectrumAnalyzer::createEQCurvePlot(juce::Graphics& g, const juce::Rectangl
 }
 
 // Callback do timer de atualização
-void SpectrumAnalyzer::timerCallback() {
-    if (nextFFTBlockReady.exchange(false)) {
-        // Garante que o repaint() seja executado na thread da GUI
+void SpectrumAnalyzer::timerCallback()
+{
+    if (processor.eqCurveNeedsUpdate)
+    {
+        processor.updateCachedEqCurve(getWidth(), static_cast<float>(processor.getSampleRate()));
+    }
+
+    if (nextFFTBlockReady.exchange(false))
+    {
         juce::MessageManager::callAsync([this]() {
             repaint();
         });
     }
 }
+
 
 // Callback quando um parâmetro é alterado
 void SpectrumAnalyzer::parameterValueChanged(int, float) {

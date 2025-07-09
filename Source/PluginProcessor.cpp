@@ -36,6 +36,17 @@ ParamEqAudioProcessor::ParamEqAudioProcessor()
     for (auto& val : lastGain) val.store(-1.0f);
     for (auto& type : filterTypes) type = PEAK;
     for (auto& lastType : lastFilterType) lastType = PEAK;
+
+    for (int band = 0; band < NUM_BANDS; ++band)
+    {
+        auto markDirty = [this, band](float) { coefficientsDirty[band] = true;};
+
+        parameters.getParameter("FREQ" + juce::String(band + 1))->addListener(this);
+        parameters.getParameter("Q" + juce::String(band + 1))->addListener(this);
+        parameters.getParameter("GAIN" + juce::String(band + 1))->addListener(this);
+        parameters.getParameter("TYPE" + juce::String(band + 1))->addListener(this);
+    }
+
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout ParamEqAudioProcessor::createParameterLayout()
@@ -163,8 +174,6 @@ void ParamEqAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 
 }
 
-
-
 void ParamEqAudioProcessor::releaseResources()
 {
     juce::ScopedLock sl(analyzerLock);
@@ -218,62 +227,32 @@ FilterType getMappedFilterType(int choiceIndex)
 }
 
 
-std::vector<float> ParamEqAudioProcessor::getEqCurve(int numPoints, float sampleRate) 
+std::vector<float> ParamEqAudioProcessor::getEqCurve(int numPoints, float sampleRate)
 {
+    updateCachedCoefficients(); // atualiza o cache se necessário
+
     std::vector<float> curve(numPoints, 0.0f);
 
-    for (int i = 0; i < numPoints; ++i) 
+    for (int i = 0; i < numPoints; ++i)
     {
         float freq = juce::mapToLog10(float(i) / (numPoints - 1), 20.0f, 20000.0f);
         float totalMagnitude = 1.0f;
-        
-        for (int band = 0; band < NUM_BANDS; ++band) 
-        {
-            auto freqParam = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
-            auto qParam = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
-            auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
-            auto typeValue = parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load();
-            FilterType currentType = getMappedFilterType(static_cast<int>(typeValue));
 
-            if (currentType == LOW_PASS || currentType == HIGH_PASS || std::abs(gainDb) > 0.1f) 
+        for (int band = 0; band < NUM_BANDS; ++band)
+        {
+            auto* coeffs = cachedCoefficients[band].get();
+            if (coeffs != nullptr)
             {
-                // Usamos ponteiro bruto temporário para os coeficientes
-                juce::ReferenceCountedObjectPtr<juce::dsp::IIR::Coefficients<float>> coeffs;
-                
-                switch (currentType) {
-                    case PEAK:
-                        coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-                            sampleRate, freqParam, qParam, juce::Decibels::decibelsToGain(gainDb));
-                        break;
-                    case LOW_SHELF:
-                        coeffs = juce::dsp::IIR::Coefficients<float>::makeLowShelf(
-                            sampleRate, freqParam, qParam, juce::Decibels::decibelsToGain(gainDb));
-                        break;
-                    case HIGH_SHELF:
-                        coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-                            sampleRate, freqParam, qParam, juce::Decibels::decibelsToGain(gainDb));
-                        break;
-                    case LOW_PASS:
-                        coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
-                            sampleRate, freqParam, qParam);
-                        break;
-                    case HIGH_PASS:
-                        coeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(
-                            sampleRate, freqParam, qParam);
-                        break;
-                }
-                
-                if (coeffs != nullptr) {
-                    totalMagnitude *= coeffs->getMagnitudeForFrequency(freq, sampleRate);
-                }
+                totalMagnitude *= coeffs->getMagnitudeForFrequency(freq, sampleRate);
             }
         }
-        
+
         curve[i] = juce::Decibels::gainToDecibels(totalMagnitude);
     }
 
     return curve;
 }
+
 
 void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) 
 {
@@ -284,61 +263,27 @@ void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
     
-    // 2. Processamento principal (série com otimizações)
+    // 2. Processamento principal
     juce::dsp::AudioBlock<float> audioBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
 
-    for (int band = 0; band < NUM_BANDS; ++band) 
+    // Atualiza os coeficientes se necessário
+    updateCachedCoefficients();
+
+    for (int band = 0; band < NUM_BANDS; ++band)
     {
-        auto freq = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
-        auto q = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
         auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
-        FilterType currentType = getMappedFilterType(
-            parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load()
-        );
+        auto typeValue = parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load();
+        FilterType currentType = getMappedFilterType(static_cast<int>(typeValue));
 
-        // Pule filtros inativos (exceto passa-baixa/alta)
-        if (std::abs(gainDb) < 0.1f && currentType != LOW_PASS && currentType != HIGH_PASS) continue;
+        // Pula filtros inativos (exceto HP/LP, pois estes não possuem ganho)
+        if (std::abs(gainDb) < 0.1f && currentType != LOW_PASS && currentType != HIGH_PASS)
+            continue;
 
-        // Atualize coeficientes se necessário
-        if (freq != lastFreq[band] || q != lastQ[band] || gainDb != lastGain[band] || 
-            (band == 0 || band == 7) && currentType != lastFilterType[band]) 
-        {
-            switch (currentType) {
-                case PEAK:
-                    *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-                        spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
-                    break;
-                    
-                case LOW_SHELF:
-                    *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf(
-                        spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
-                    break;
-                    
-                case HIGH_SHELF:
-                    *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-                        spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
-                    break;
-                    
-                case LOW_PASS:
-                    *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
-                        spec.sampleRate, freq, q);
-                    break;
-                    
-                case HIGH_PASS:
-                    *filters[band].state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(
-                        spec.sampleRate, freq, q);
-                    break;
-            }
-            
-            // Armazena últimos valores
-            lastFreq[band] = freq;
-            lastQ[band] = q;
-            lastGain[band] = gainDb;
-            if (band == 0 || band == 7) {
-                lastFilterType[band] = currentType;
-            }
-        }
+        // Atualiza o filtro com o cache
+        auto* coeffs = cachedCoefficients[band].get();
+        if (coeffs != nullptr)
+            *filters[band].state = *coeffs;
 
         filters[band].process(context);
     }
@@ -358,6 +303,60 @@ void ParamEqAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             monoBuffer.setSample(0, i, gainFactor * sum);
         }
         pushBufferToAnalyzer(monoBuffer);
+    }
+}
+
+void ParamEqAudioProcessor::parameterValueChanged(int index, float newValue)
+{
+    auto* rawParam = getParameters()[index];
+    auto* param = dynamic_cast<juce::AudioProcessorParameterWithID*>(rawParam);
+    if (!param) return;
+
+    const juce::String id = param->getParameterID();
+    for (int band = 0; band < NUM_BANDS; ++band)
+    {
+        if (id.contains(juce::String(band + 1)))
+        {
+            coefficientsDirty[band] = true;
+            eqCurveNeedsUpdate = true;
+            break;
+        }
+    }
+}
+
+void ParamEqAudioProcessor::updateCachedCoefficients()
+{
+    for (int band = 0; band < NUM_BANDS; ++band)
+    {
+        if (!coefficientsDirty[band])
+            continue;
+
+        auto freq = parameters.getRawParameterValue("FREQ" + juce::String(band + 1))->load();
+        auto q = parameters.getRawParameterValue("Q" + juce::String(band + 1))->load();
+        auto gainDb = parameters.getRawParameterValue("GAIN" + juce::String(band + 1))->load();
+        FilterType currentType = getMappedFilterType(
+            parameters.getRawParameterValue("TYPE" + juce::String(band + 1))->load());
+
+        switch (currentType)
+        {
+            case PEAK:
+                cachedCoefficients[band] = juce::dsp::IIR::Coefficients<float>::makePeakFilter(spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
+                break;
+            case LOW_SHELF:
+                cachedCoefficients[band] = juce::dsp::IIR::Coefficients<float>::makeLowShelf(spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
+                break;
+            case HIGH_SHELF:
+                cachedCoefficients[band] = juce::dsp::IIR::Coefficients<float>::makeHighShelf(spec.sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb));
+                break;
+            case LOW_PASS:
+                cachedCoefficients[band] = juce::dsp::IIR::Coefficients<float>::makeLowPass(spec.sampleRate, freq, q);
+                break;
+            case HIGH_PASS:
+                cachedCoefficients[band] = juce::dsp::IIR::Coefficients<float>::makeHighPass(spec.sampleRate, freq, q);
+                break;
+        }
+
+        coefficientsDirty[band] = false;
     }
 }
 
@@ -391,4 +390,30 @@ void ParamEqAudioProcessor::setStateInformation (const void* data, int sizeInByt
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new ParamEqAudioProcessor();
+}
+
+
+void ParamEqAudioProcessor::updateCachedEqCurve(int numPoints, float sampleRate)
+{
+    updateCachedCoefficients();
+
+    cachedEqCurve.clear();
+    cachedEqCurve.resize(numPoints);
+
+    for (int i = 0; i < numPoints; ++i)
+    {
+        float freq = juce::mapToLog10(float(i) / (numPoints - 1), 20.0f, 20000.0f);
+        float totalMagnitude = 1.0f;
+
+        for (int band = 0; band < NUM_BANDS; ++band)
+        {
+            auto* coeffs = cachedCoefficients[band].get();
+            if (coeffs != nullptr)
+                totalMagnitude *= coeffs->getMagnitudeForFrequency(freq, sampleRate);
+        }
+
+        cachedEqCurve[i] = juce::Decibels::gainToDecibels(totalMagnitude);
+    }
+
+    eqCurveNeedsUpdate = false;
 }

@@ -30,7 +30,8 @@ enum FilterType {
     HIGH_PASS
 };
 
-class ParamEqAudioProcessor  : public juce::AudioProcessor
+class ParamEqAudioProcessor  : public juce::AudioProcessor,
+                               public juce::AudioProcessorParameter::Listener
 {
 public:
     //==============================================================================
@@ -70,7 +71,7 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Sistema de par�metros
+    // Sistema de parâmetros
     juce::AudioProcessorValueTreeState parameters;
 
     juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
@@ -79,7 +80,17 @@ public:
     static constexpr int NUM_BANDS = 8;
     static juce::String getFilterTypeName(FilterType type);
 
-    // tipos de filtro
+    void parameterValueChanged(int parameterIndex, float newValue) override;
+    void parameterGestureChanged(int, bool) override {}  // não usado
+
+    // Cache de coeficientes de filtro
+    std::array<juce::dsp::IIR::Coefficients<float>::Ptr, NUM_BANDS> cachedCoefficients;
+    std::array<std::atomic<bool>, NUM_BANDS> coefficientsDirty;
+    void updateCachedCoefficients();
+
+
+
+    // Tipos de filtro
     static FilterType getMappedFilterType(int choiceIndex)
     {
         switch (choiceIndex)
@@ -98,7 +109,13 @@ public:
     SpectrumAnalyzer* spectrumAnalyzer = nullptr;
 
     // Curva de equalizacao
-    std::vector<float> getEqCurve(int numPoints, float sampleRate);
+    std::vector<float> getEqCurve(int numPoints, float sampleRate); // Calcula a curva
+    
+    // Sistema de cache para curva de equalização, evitando redesenhos desnecessários
+    std::atomic<bool> eqCurveNeedsUpdate { true };
+    std::vector<float> cachedEqCurve;
+
+    void updateCachedEqCurve(int numPoints, float sampleRate);
 
 private:
     //====================================Defini��o do filtro==========================================
@@ -121,4 +138,5 @@ private:
 
     // Cria layout de parametros
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
 };
