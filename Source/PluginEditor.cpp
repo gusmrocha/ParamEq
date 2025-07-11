@@ -1,3 +1,20 @@
+// ParamEQ - Parametric Equalizer Plugin
+// Copyright (C) 2025 Gustavo Mugnol Rocha
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -7,128 +24,109 @@ ParamEqAudioProcessorEditor::ParamEqAudioProcessorEditor (ParamEqAudioProcessor&
 {
     const int numBands = ParamEqAudioProcessor::NUM_BANDS;
 
-    // Configuração dos ComboBoxes para tipos de filtro
-    for (int band = 0; band < ParamEqAudioProcessor::NUM_BANDS; ++band)
+    for (int band = 0; band < numBands; ++band)
     {
-        // Configuração do ComboBox
-        filterTypeSelectors[band].addItemList({"Peak", "Low Shelf", "High Shelf", "Low Pass", "High Pass"}, 1);
-        addAndMakeVisible(filterTypeSelectors[band]);
-        
-        // Crie o attachment
+        // === ComboBox de tipo de filtro ===
+        auto& combo = filterTypeSelectors[band];
+        combo.addItemList({"Peak", "Low Shelf", "High Shelf", "Low Pass", "High Pass"}, 1);
+        combo.setColour(juce::ComboBox::backgroundColourId, customLNF.getBandColor(band).withAlpha(0.2f));
+        combo.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+        addAndMakeVisible(combo);
+
         typeAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-            audioProcessor.parameters, "TYPE" + juce::String(band + 1), filterTypeSelectors[band]));
-        
-        // Estilo visual
-        filterTypeSelectors[band].setColour(juce::ComboBox::backgroundColourId, 
-                                          customLNF.getBandColor(band).withAlpha(0.2f));
-        filterTypeSelectors[band].setColour(juce::ComboBox::textColourId, juce::Colours::white);
-    }
-    
+            audioProcessor.parameters, "TYPE" + juce::String(band + 1), combo));
 
-    for (int band = 0; band < numBands; band++) {
-        // === Configuração dos Sliders ===
-        // Frequência
-        freqSliders[band].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        freqSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 25);
-        freqSliders[band].setNumDecimalPlacesToDisplay(0);
-        freqSliders[band].setTextValueSuffix(" Hz");
+        // === Sliders ===
+        auto& freq = freqSliders[band];
+        auto& gain = gainSliders[band];
+        auto& q = qSliders[band];
 
-        // Q
-        qSliders[band].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        qSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 25);
-        qSliders[band].setNumDecimalPlacesToDisplay(2);
+        freq.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        freq.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 25);
+        freq.setNumDecimalPlacesToDisplay(0);
+        freq.setTextValueSuffix(" Hz");
 
-        // Gain
-        gainSliders[band].setSliderStyle(juce::Slider::LinearVertical);
-        gainSliders[band].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 25);
-        gainSliders[band].setTextValueSuffix(" dB");
+        q.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        q.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 25);
+        q.setNumDecimalPlacesToDisplay(2);
 
-        // Look and Feel customizados
-        freqSliders[band].setLookAndFeel(&customLNF);
-        qSliders[band].setLookAndFeel(&customLNF);
-        gainSliders[band].setLookAndFeel(&customLNF);
+        gain.setSliderStyle(juce::Slider::LinearVertical);
+        gain.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 25);
+        gain.setTextValueSuffix(" dB");
 
-        // Aplica cores aos labels
-        customLNF.setCurrentBand(band);
-        freqLabels[band].setColour(juce::Label::textColourId, customLNF.getBandColor());
-        qLabels[band].setColour(juce::Label::textColourId, customLNF.getBandColor());
-        gainLabels[band].setColour(juce::Label::textColourId, customLNF.getBandColor());    // Aplica cores aos labels
-        customLNF.setCurrentBand(band);
-        freqLabels[band].setColour(juce::Label::textColourId, customLNF.getBandColor());
-        qLabels[band].setColour(juce::Label::textColourId, customLNF.getBandColor());
-        gainLabels[band].setColour(juce::Label::textColourId, customLNF.getBandColor());
+        // Look and Feel
+        freq.setLookAndFeel(&customLNF);
+        gain.setLookAndFeel(&customLNF);
+        q.setLookAndFeel(&customLNF);
 
+        // === Labels ===
+        auto& freqLabel = freqLabels[band];
+        auto& qLabel = qLabels[band];
+        auto& gainLabel = gainLabels[band];
+
+        freqLabel.setText("Freq", juce::dontSendNotification);
+        qLabel.setText("Q", juce::dontSendNotification);
+        gainLabel.setText("Gain", juce::dontSendNotification);
+
+        freqLabel.attachToComponent(&freq, false);
+        qLabel.attachToComponent(&q, false);
+        gainLabel.attachToComponent(&gain, false);
+
+        freqLabel.setJustificationType(juce::Justification::centred);
+        qLabel.setJustificationType(juce::Justification::centred);
+        gainLabel.setJustificationType(juce::Justification::centred);
+
+        addAndMakeVisible(freqLabel);
+        addAndMakeVisible(qLabel);
+        addAndMakeVisible(gainLabel);
+
+        freqLabel.setColour(juce::Label::textColourId, customLNF.getBandColor(band));
+        qLabel.setColour(juce::Label::textColourId, customLNF.getBandColor(band));
+        gainLabel.setColour(juce::Label::textColourId, customLNF.getBandColor(band));
 
         // === Visibilidade ===
-        addAndMakeVisible(freqSliders[band]);
-        addAndMakeVisible(qSliders[band]);
-        addAndMakeVisible(gainSliders[band]);
-
-        // Configura labels de frequência
-        freqLabels[band].setText("Freq", juce::dontSendNotification);
-        freqLabels[band].attachToComponent(&freqSliders[band], false);
-        freqLabels[band].setJustificationType(juce::Justification::centred);
-        freqLabels[band].setColour(juce::Label::textColourId, juce::Colours::white);
-        addAndMakeVisible(freqLabels[band]);
-
-        // Configura labels de Q
-        qLabels[band].setText("Q", juce::dontSendNotification);
-        qLabels[band].attachToComponent(&qSliders[band], false);
-        qLabels[band].setJustificationType(juce::Justification::centred);
-        qLabels[band].setColour(juce::Label::textColourId, juce::Colours::white);
-        addAndMakeVisible(qLabels[band]);
-
-        // Configura labels de Gain
-        gainLabels[band].setText("Gain", juce::dontSendNotification);
-        gainLabels[band].attachToComponent(&gainSliders[band], false);
-        gainLabels[band].setJustificationType(juce::Justification::centred);
-        gainLabels[band].setColour(juce::Label::textColourId, juce::Colours::white);
-        addAndMakeVisible(gainLabels[band]);
+        addAndMakeVisible(freq);
+        addAndMakeVisible(q);
+        addAndMakeVisible(gain);
 
         // === Attachments ===
         freqAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-            audioProcessor.parameters, "FREQ" + juce::String(band + 1), freqSliders[band]
-        ));
+            audioProcessor.parameters, "FREQ" + juce::String(band + 1), freq));
         gainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-            audioProcessor.parameters, "GAIN" + juce::String(band + 1), gainSliders[band]
-        ));
+            audioProcessor.parameters, "GAIN" + juce::String(band + 1), gain));
         qAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-            audioProcessor.parameters, "Q" + juce::String(band + 1), qSliders[band]
-        ));
-        
-        // Configuração final de cores
-        customLNF.setCurrentBand(band);
-        
-        // Aplica estilos consistentes para todos os sliders
-        auto bandColor = customLNF.getBandColor();
-        
-        // Sliders de frequência
-        freqSliders[band].setColour(juce::Slider::thumbColourId, bandColor);
-        freqSliders[band].setColour(juce::Slider::rotarySliderFillColourId, bandColor.withAlpha(0.7f));
-        freqSliders[band].setColour(juce::Slider::rotarySliderOutlineColourId, bandColor.darker(0.5f));
-        
-        // Sliders de Q
-        qSliders[band].setColour(juce::Slider::thumbColourId, bandColor);
-        qSliders[band].setColour(juce::Slider::rotarySliderFillColourId, bandColor.withAlpha(0.7f));
-        qSliders[band].setColour(juce::Slider::rotarySliderOutlineColourId, bandColor.darker(0.5f));
-        
-        // Sliders de ganho
-        gainSliders[band].setColour(juce::Slider::thumbColourId, bandColor.brighter(0.2f));
-        gainSliders[band].setColour(juce::Slider::trackColourId, bandColor.withAlpha(0.4f));
-        
-        // Textos
-        freqSliders[band].setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
-        qSliders[band].setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
-        gainSliders[band].setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+            audioProcessor.parameters, "Q" + juce::String(band + 1), q));
 
+        // === Cores ===
+        customLNF.setCurrentBand(band);
+        auto bandColor = customLNF.getBandColor();
+
+        // Freq
+        freq.setColour(juce::Slider::thumbColourId, bandColor);
+        freq.setColour(juce::Slider::rotarySliderFillColourId, bandColor.withAlpha(0.7f));
+        freq.setColour(juce::Slider::rotarySliderOutlineColourId, bandColor.darker(0.5f));
+        freq.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+
+        // Q
+        q.setColour(juce::Slider::thumbColourId, bandColor);
+        q.setColour(juce::Slider::rotarySliderFillColourId, bandColor.withAlpha(0.7f));
+        q.setColour(juce::Slider::rotarySliderOutlineColourId, bandColor.darker(0.5f));
+        q.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+
+        // Gain
+        gain.setColour(juce::Slider::thumbColourId, bandColor.brighter(0.2f));
+        gain.setColour(juce::Slider::trackColourId, bandColor.withAlpha(0.4f));
+        gain.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
     }
 
+    // === Analisador de espectro ===
     spectrumAnalyzer = std::make_unique<SpectrumAnalyzer>(audioProcessor);
     addAndMakeVisible(spectrumAnalyzer.get());
     audioProcessor.spectrumAnalyzer = spectrumAnalyzer.get();
 
-    setSize(1000, 500); //
+    setSize(1000, 500);
 }
+
 
 ParamEqAudioProcessorEditor::~ParamEqAudioProcessorEditor() {
     audioProcessor.spectrumAnalyzer = nullptr; // Limpa o ponteiro do analisador de espectro

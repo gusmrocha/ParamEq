@@ -1,20 +1,32 @@
-# --- Build artifacts ---
-/build*/
-/*_artefacts/
-/bin/
-/out/
+# === BUILD ARTIFACTS ===
+/.build/                # Build directories (e.g., build, build_Debug, build_Release)
+/*_artefacts/           # JUCE-generated artefacts
+/bin/                   # Binary output
+/out/                   # Other output directories
 
-# --- Dependencies ---
-/_deps/
+# === DEPENDENCIES ===
+/_deps/                 # External libraries or submodules
 
-# --- IDE ---
+# === IDEs & EDITORS ===
+# VSCode
 /.vscode/
-!.vscode/settings.json  # Keep essential VSCode settings
-/.idea/
-/.tools/
+!.vscode/settings.json  # Keep shared VSCode settings
 
-# --- System ---
-.DS_Store
-Thumbs.db
-*.swp
-*~
+# CLion / IntelliJ
+/.idea/
+
+# Code::Blocks / DevC++
+*.layout
+*.depend
+*.cbp
+*.dev
+
+# === JUCE / CMake tools ===
+/.tools/                # Auxiliary tools not used in the project
+/CMakeLists.txt.user    # User-specific IDE configuration
+
+# === SYSTEM FILES ===
+.DS_Store               # macOS system file
+Thumbs.db               # Windows system file
+*.swp                   # Vim swap files
+*~                      # Editor backup files
