@@ -411,25 +411,6 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 void ParamEqAudioProcessor::updateCachedEqCurve(int numPoints, float sampleRate)
 {
-    updateCachedCoefficients();
-
-    cachedEqCurve.clear();
-    cachedEqCurve.resize(numPoints);
-
-    for (int i = 0; i < numPoints; ++i)
-    {
-        float freq = juce::mapToLog10(float(i) / (numPoints - 1), 20.0f, 20000.0f);
-        float totalMagnitude = 1.0f;
-
-        for (int band = 0; band < NUM_BANDS; ++band)
-        {
-            auto* coeffs = cachedCoefficients[band].get();
-            if (coeffs != nullptr)
-                totalMagnitude *= coeffs->getMagnitudeForFrequency(freq, sampleRate);
-        }
-
-        cachedEqCurve[i] = juce::Decibels::gainToDecibels(totalMagnitude);
-    }
-
+    cachedEqCurve = getEqCurve(numPoints, sampleRate);
     eqCurveNeedsUpdate = false;
 }

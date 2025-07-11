@@ -1,5 +1,5 @@
 # === BUILD ARTIFACTS ===
-/.build/                # Build directories (e.g., build, build_Debug, build_Release)
+/build*/                # Build directories (e.g., build, build_Debug, build_Release)
 /*_artefacts/           # JUCE-generated artefacts
 /bin/                   # Binary output
 /out/                   # Other output directories
