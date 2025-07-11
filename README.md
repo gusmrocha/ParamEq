@@ -66,7 +66,7 @@ See the LICENSE file for full terms.
 ## Acknowledgements
 
 - Built with [JUCE](https://juce.com)  
-- Developed as part of an academic final project (TCC)
+- Developed as part of an academic final project
 
 ---
 
