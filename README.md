@@ -66,6 +66,8 @@ See the LICENSE file for full terms.
 ## Acknowledgements
 
 - Built with [JUCE](https://juce.com)  
+- Dependency management via [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake)  
+- Based on [JuceAudioPluginTemplate](https://github.com/TheAudioProgrammer/JuceAudioPluginTemplate)  
 - Developed as part of an academic final project
 
 ---
@@ -138,4 +140,6 @@ Consulte o arquivo LICENSE para mais informações.
 ## Agradecimentos
 
 - Construído com [JUCE](https://juce.com)  
+- Gerenciamento de dependências via [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake)  
+- Baseado em [JuceAudioPluginTemplate](https://github.com/TheAudioProgrammer/JuceAudioPluginTemplate)  
 - Desenvolvido como parte de um Trabalho de Conclusão de Curso (TCC)
