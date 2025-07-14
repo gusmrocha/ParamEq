@@ -17,6 +17,22 @@ Designed for real-time audio processing in VST3-compatible DAWs.
 
 ---
 
+## 🌿 Branches
+
+### `main`
+
+- 🔄 Default development branch  
+- 🛠️ Active development happens here  
+- 💬 Open to pull requests and community contributions (requires approval)
+
+### `tcc-final`
+
+- 📌 Snapshot of the exact state of the project at the time of its submission as a **final academic project**  
+- 🧊 Permanently frozen and protected from changes  
+- 📎 Serves as an academic reference version
+
+---
+
 ## Building the Plugin
 
 This project uses JUCE (v8.0.8) and CMake for building the plugin. It is configured to automatically download JUCE as a dependency.
@@ -31,23 +47,27 @@ This project uses JUCE (v8.0.8) and CMake for building the plugin. It is configu
 ### 📦 Build steps (Windows/Linux/macOS)
 
 1. Clone the repository:
+
    ```bash
    git clone --recursive https://github.com/your-user/ParamEQ.git
    cd ParamEQ
    ```
 
 2. Create a build directory and run CMake:
+
    ```bash
    mkdir build && cd build
    cmake ..
    ```
 
 3. Build the plugin:
+
    ```bash
    cmake --build . --config Release
    ```
 
 4. Locate the generated `.vst3` file:
+
    - On Windows: `build/ParamEQ_artefacts/Release/VST3/ParamEQ.vst3`
    - On macOS: `build/ParamEQ_artefacts/Release/ParamEQ.vst3`
    - On Linux: varies depending on configuration
@@ -91,6 +111,22 @@ Projetado para processamento de áudio em tempo real em DAWs compatíveis com o 
 
 ---
 
+## Branches
+
+### `main`
+
+- 🔄 Branch principal de desenvolvimento  
+- 🛠️ Onde ocorrem melhorias e novas funcionalidades  
+- 💬 Aberta a contribuições externas via pull request (sujeitas à aprovação)
+
+### `tcc-final`
+
+- 📌 Contém o estado exato do projeto no momento da entrega do projeto acadêmico final  
+- 🧊 Permanentemente congelada e protegida contra alterações  
+- 📎 Mantida como versão de referência acadêmica
+
+---
+
 ## Como compilar o plugin
 
 O projeto utiliza JUCE (v8.0.8) e CMake para automatizar a construção do plugin. A dependência da JUCE é baixada automaticamente.
@@ -105,23 +141,27 @@ O projeto utiliza JUCE (v8.0.8) e CMake para automatizar a construção do plugi
 ### 📦 Etapas de compilação (Windows/Linux/macOS)
 
 1. Clone o repositório:
+
    ```bash
    git clone --recursive https://github.com/seu-usuario/ParamEQ.git
    cd ParamEQ
    ```
 
 2. Crie a pasta de build e execute o CMake:
+
    ```bash
    mkdir build && cd build
    cmake ..
    ```
 
 3. Compile o plugin:
+
    ```bash
    cmake --build . --config Release
    ```
 
 4. Localize o arquivo `.vst3` gerado:
+
    - No Windows: `build/ParamEQ_artefacts/Release/VST3/ParamEQ.vst3`
    - No macOS: `build/ParamEQ_artefacts/Release/ParamEQ.vst3`
    - No Linux: depende da configuração do sistema
